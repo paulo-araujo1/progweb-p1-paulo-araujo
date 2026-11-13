@@ -1,4 +1,3 @@
-
 # Modelagem — Projeto 1
 
 **Aluno(a):** Paulo Cézar Silva de Araújo
@@ -7,19 +6,31 @@
 
 ## 1. O domínio
 
-É uma plataforma digital que permite que pessoas físicas e empresas anunciem seus próprios veículos para aluguel. Os interessados podem consultar os veículos disponíveis e realizar locações por um período determinado.
+É uma plataforma digital que permite que pessoas físicas e empresas anunciem seus próprios veículos para aluguel. Os interessados podem consultar os veículos disponíveis e realizar locações por períodos determinados.
 
-O sistema controla os anunciantes, os veículos cadastrados e as locações, garantindo que um veículo não tenha duas locações com períodos conflitantes.
+O sistema permite o gerenciamento dos anunciantes, dos veículos cadastrados, dos locatários e das locações realizadas, mantendo as informações organizadas e verificando a disponibilidade dos veículos.
 
 ## 2. Entidades
 
-| Entidade   | Atributos                                                                               | Relacionamentos                                                                   |
-| ---------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Anunciante | id, nome, tipo, documento, email, telefone                                              | Pode cadastrar vários veículos.                                                 |
-| Veiculo    | id, anuncianteId, marca, modelo, ano, placa, valorDiaria, status                        | Pertence a um anunciante e pode aparecer em várias locações ao longo do tempo. |
-| Locacao    | id, veiculoId, nomeLocatario, contatoLocatario, dataInicio, dataFim, valorTotal, status | Está associada a um veículo.                                                    |
+| Entidade   | Atributos                                                           | Relacionamentos                                                                         |
+| ---------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Anunciante | id, nome, tipo, documento, email, telefone                          | Pode cadastrar vários veículos.                                                       |
+| Veiculo    | id, anuncianteId, marca, modelo, ano, placa, valorDiaria, status    | Pertence a um anunciante e pode estar associado a várias locações ao longo do tempo. |
+| Locatario  | id, nome, documento, email, telefone                                | Pode realizar várias locações.                                                       |
+| Locacao    | id, veiculoId, locatarioId, dataInicio, dataFim, valorTotal, status | Está associada a um veículo e a um locatário.                                        |
 
-O atributo `tipo` do anunciante pode assumir os valores `PESSOA_FISICA` ou `EMPRESA`. O atributo `status` do veículo indica se ele está disponível para locação ou inativo. Já o status da locação pode ser `SOLICITADA`, `APROVADA`, `CONCLUIDA` ou `CANCELADA`.
+
+* **Anunciante:** representa a pessoa física ou empresa responsável por disponibilizar veículos para aluguel. O atributo `<span>tipo</span>` identifica se o anunciante é uma pessoa física ou uma empresa.
+* **Veiculo:** representa os veículos cadastrados na plataforma, contendo suas características, valor da diária e situação de disponibilidade.
+* **Locatario:** representa a pessoa interessada em alugar um veículo, armazenando suas informações pessoais e de contato.
+* **Locacao:** registra o aluguel de um veículo, identificando o locatário, o veículo escolhido, o período da locação, o valor total e sua situação.
+
+### Relacionamentos
+
+* Um anunciante pode cadastrar vários veículos, mas cada veículo pertence a apenas um anunciante.
+* Um veículo pode estar associado a várias locações ao longo do tempo, desde que não existam conflitos entre os períodos.
+* Um locatário pode realizar várias locações, mas cada locação pertence a apenas um locatário.
+* Cada locação está associada a um único veículo e a um único locatário.
 
 ## 3. Diagrama de classes
 
@@ -50,11 +61,19 @@ classDiagram
         +atualizarStatus(status)
     }
 
+    class Locatario {
+        +id
+        +nome
+        +documento
+        +email
+        +telefone
+        +validarDados()
+    }
+
     class Locacao {
         +id
         +veiculoId
-        +nomeLocatario
-        +contatoLocatario
+        +locatarioId
         +dataInicio
         +dataFim
         +valorTotal
@@ -74,7 +93,15 @@ classDiagram
     class VeiculoService {
         +cadastrar(dados)
         +buscarPorId(id)
-        +listarDisponiveis()
+        +listar()
+        +atualizar(id, dados)
+        +excluir(id)
+    }
+
+    class LocatarioService {
+        +cadastrar(dados)
+        +buscarPorId(id)
+        +listar()
         +atualizar(id, dados)
         +excluir(id)
     }
@@ -100,9 +127,17 @@ classDiagram
         <<interface>>
         +buscarPorId(id)
         +listar()
-        +listarDisponiveis()
         +salvar(veiculo)
         +atualizar(veiculo)
+        +excluir(id)
+    }
+
+    class LocatarioRepository {
+        <<interface>>
+        +buscarPorId(id)
+        +listar()
+        +salvar(locatario)
+        +atualizar(locatario)
         +excluir(id)
     }
 
@@ -118,30 +153,33 @@ classDiagram
 
     Anunciante "1" --> "0..*" Veiculo : anuncia
     Veiculo "1" --> "0..*" Locacao : possui historico de
+    Locatario "1" --> "0..*" Locacao : realiza
 
-    AnuncianteService ..> AnuncianteRepository : depende de
-    VeiculoService ..> VeiculoRepository : depende de
+    AnuncianteService ..> AnuncianteRepository : usa
+    VeiculoService ..> VeiculoRepository : usa
     VeiculoService ..> AnuncianteRepository : consulta
-    LocacaoService ..> LocacaoRepository : depende de
+    LocatarioService ..> LocatarioRepository : usa
+    LocacaoService ..> LocacaoRepository : usa
     LocacaoService ..> VeiculoRepository : consulta
-
+    LocacaoService ..> LocatarioRepository : consulta
 ```
-
-As interfaces `AnuncianteRepository`, `VeiculoRepository` e `LocacaoRepository` representam contratos de acesso aos dados. As implementações concretas desses contratos serão definidas posteriormente, quando o projeto começar a ser programado.
 
 ## 4. Responsabilidades
 
-| Classe               | Responsabilidade                                                                                           | Motivo para mudar                                        |
-| -------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Anunciante           | Representar quem anuncia os veículos e validar suas informações.                                        | Mudanças nas regras e nos dados do anunciante.          |
-| Veiculo              | Representar o veículo e suas regras próprias, como disponibilidade e valor diário válido.              | Mudanças nas regras do veículo.                        |
-| Locacao              | Representar uma locação e calcular seu valor total com base no período e na diária informada.          | Mudanças nas regras próprias da locação.             |
-| AnuncianteService    | Coordenar o cadastro, a consulta, a atualização e a exclusão de anunciantes.                            | Mudanças no processo de gerenciamento de anunciantes.   |
-| VeiculoService       | Coordenar o cadastro e o gerenciamento dos veículos, verificando a existência do anunciante.             | Mudanças no processo de gerenciamento de veículos.     |
-| LocacaoService       | Coordenar as solicitações de locação e verificar a disponibilidade do veículo no período solicitado. | Mudanças nas regras do processo de locação.           |
-| AnuncianteRepository | Definir as operações de persistência dos anunciantes.                                                   | Mudanças na forma de consultar e armazenar anunciantes. |
-| VeiculoRepository    | Definir as operações de persistência dos veículos.                                                     | Mudanças na forma de consultar e armazenar veículos.   |
-| LocacaoRepository    | Definir as operações de persistência das locações.                                                    | Mudanças na forma de consultar e armazenar locações.  |
+| Classe               | Papel                                                                                                       | Único motivo para mudar                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Anunciante           | Representar os dados e as regras próprias de quem anuncia veículos.                                       | Mudanças nas características ou regras do anunciante.         |
+| Veiculo              | Representar os dados e as regras próprias dos veículos.                                                   | Mudanças nas características ou regras dos veículos.         |
+| Locatario            | Representar os dados e as regras próprias de quem realiza locações.                                      | Mudanças nas características ou regras do locatário.         |
+| Locacao              | Representar uma locação e suas regras próprias, como cálculo do valor total e cancelamento.             | Mudanças nas regras de uma locação.                          |
+| AnuncianteService    | Coordenar as operações de cadastro, consulta, atualização e exclusão de anunciantes.                   | Mudanças nas regras do gerenciamento de anunciantes.           |
+| VeiculoService       | Coordenar o gerenciamento dos veículos e verificar a existência do anunciante responsável pelo cadastro. | Mudanças nas regras do gerenciamento de veículos.             |
+| LocatarioService     | Coordenar as operações de cadastro, consulta, atualização e exclusão de locatários.                   | Mudanças nas regras do gerenciamento de locatários.           |
+| LocacaoService       | Coordenar as solicitações de locação e verificar a disponibilidade do veículo no período solicitado.  | Mudanças nas regras do processo de locação.                  |
+| AnuncianteRepository | Definir as operações de acesso e persistência dos dados dos anunciantes.                                 | Mudanças na forma de armazenamento e consulta dos anunciantes. |
+| VeiculoRepository    | Definir as operações de acesso e persistência dos dados dos veículos.                                   | Mudanças na forma de armazenamento e consulta dos veículos.   |
+| LocatarioRepository  | Definir as operações de acesso e persistência dos dados dos locatários.                                 | Mudanças na forma de armazenamento e consulta dos locatários. |
+| LocacaoRepository    | Definir as operações de acesso e persistência dos dados das locações.                                  | Mudanças na forma de armazenamento e consulta das locações.  |
 
 ## 5. Onde apliquei SRP e DIP
 
